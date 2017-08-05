@@ -1,0 +1,7 @@
+AuthName "hoodclips.net statistics"
+AuthType Basic
+AuthUserFile /home/hoodclips14/.stats-htpasswd
+require valid-user
+<Files .stats-htpasswd>
+deny from all
+</Files>

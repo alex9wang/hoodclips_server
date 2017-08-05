@@ -1,0 +1,40 @@
+Date/Time: 5/23/2016 3:39:18 AM
+Date/Time: 5/23/2016 3:39:18 AM
+Message: ipn_pal.aspx Page_Load
+===========================================================================================
+
+Date/Time: 5/23/2016 3:39:18 AM
+Date/Time: 5/23/2016 3:39:18 AM
+Message: create webrequest
+===========================================================================================
+
+Date/Time: 5/23/2016 3:39:18 AM
+Date/Time: 5/23/2016 3:39:18 AM
+Message: strRequesttxn_type=subscr_signup&subscr_id=I-GK7F31MPHH8G&last_name=buyer&option_selection1=Lean+Buddy+Trainer+Subscription&residence_country=US&mc_currency=USD&item_name=Lean+Buddy+30+Day+Free&amount1=0.00&business=contactleanbuddy-facilitator%40gmail.com&amount3=29.99&recurring=1&verify_sign=APfaUS5KDoprhqjNuitNNIdsEAAfAv1VtEIEyPZls2UYyAAXo6EkDuaa&payer_status=verified&test_ipn=1&payer_email=contactleanbuddy-buyer%40gmail.com&first_name=test&receiver_email=contactleanbuddy-facilitator%40gmail.com&payer_id=NNRKP86YWXCXQ&option_name1=os0&invoice=Code%3ANo+CodeDate%3A5/21/2016+5%3A25%3A50+PM&reattempt=1&subscr_date=10%3A26%3A18+May+21%2C+2016+PDT&btn_id=3315222&custom=bongbongjin88%7C123456%7Cbongbongjin88%40gmai.com%7Cbongbong+jin%7C&charset=windows-1252&notify_version=3.8&period1=30+D&mc_amount1=0.00&period3=30+D&mc_amount3=29.99&ipn_track_id=6ca9a13a32fe8
+===========================================================================================
+
+Date/Time: 5/23/2016 3:39:19 AM
+Date/Time: 5/23/2016 3:39:19 AM
+Message: Write Stream
+===========================================================================================
+
+Date/Time: 5/23/2016 3:39:19 AM
+Date/Time: 5/23/2016 3:39:19 AM
+Message: Read Stream
+===========================================================================================
+
+Date/Time: 5/23/2016 3:39:19 AM
+Date/Time: 5/23/2016 3:39:19 AM
+Message: strResponse: INVALID
+===========================================================================================
+
+Date/Time: 5/23/2016 3:39:19 AM
+Date/Time: 5/23/2016 3:39:19 AM
+Message: ProcessTrainer
+===========================================================================================
+
+Date/Time: 5/23/2016 3:39:19 AM
+Date/Time: 5/23/2016 3:39:19 AM
+Message: pay_stat :
+===========================================================================================
+

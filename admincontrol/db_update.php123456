@@ -1,0 +1,403 @@
+<?php
+// +------------------------------------------------------------------------+
+// | PHP Melody
+// +------------------------------------------------------------------------+
+// | PHP Melody IS NOT FREE SOFTWARE
+// | If you have downloaded this software from a website other
+// | than www.phpsugar.com or if you have otherwise received
+// | this software from someone who is not a representative of
+// | this site you are involved in an illegal activity.
+// | ---
+// | In such case, please contact us at: support@phpsugar.com.
+// +------------------------------------------------------------------------+
+// | Developed by: phpSugar (www.phpsugar.com) / support@phpsugar.com
+// | Copyright: (c) 2004-2015 PhpSugar.com. All rights reserved.
+// +------------------------------------------------------------------------+
+
+@set_time_limit(100);
+
+$sql_limit = 100;	//	sql limit per iteration
+
+// Handle AJAX requests - START 
+if ($_GET['do'] == 'update')
+{
+	session_start();
+	require_once('../config.php');
+	include_once(ABSPATH .'include/functions.php');
+	include_once(ABSPATH .'include/user_functions.php');
+	include_once(ABSPATH . _ADMIN_FOLDER .'/functions.php');
+	include_once(ABSPATH .'include/islogged.php');
+	
+	$ajax_state = 'init';
+	
+	if ( ! $logged_in || ! is_admin())
+	{
+		$ajax_msg = ($logged_in) ? '<strong>Access denied!</strong> You need Adminstrator privileges to perform this operation.' : 'Please log in.';
+		exit(json_encode(array('state' => 'error',
+							   'message' => pm_alert_error($ajax_msg, false, true)
+							  )));
+	}
+	if ((int) $_GET['totalitems'] == 0)
+	{
+		$total_items = count_entries('pm_users', '', '');
+	}
+	else
+	{
+		$total_items = (int) $_GET['totalitems'];
+	}
+	
+	$error_count = 0;
+	 
+	$sql_start = (int) $_GET['start'];
+	
+	$items_processed = (int) $_GET['c']; 
+
+	
+	if ($sql_start < 0)
+		$sql_start = 0;
+
+	if ($config['maintenance_mode'] == 0)
+	{
+		update_config('maintenance_mode', 1, true);
+	}
+
+	if ($items_processed == 0)
+	{
+		$sql = array();
+		$errors = array();
+
+		// configs
+		add_config('allow_embedding', '1');
+		
+		$sql[] = "ALTER TABLE  pm_sources ADD  vscheck_support ENUM(  '1',  '0' ) NOT NULL DEFAULT  '0', ADD  vscheck_autopilot ENUM(  '1',  '0' ) NOT NULL DEFAULT  '0'";
+		$sql[] = "UPDATE  pm_sources SET  vscheck_support =  '1' WHERE  source_id IN ( 1, 2, 3, 5, 16 )";
+		
+		$sql[] = "ALTER TABLE pm_videos ADD  allow_embedding ENUM(  '0',  '1' ) NOT NULL DEFAULT  '1' AFTER  allow_comments";
+		
+		$sql_count = count($sql);
+	
+		for ($i = 0; $i < $sql_count; $i++)
+		{
+			$result =  mysql_query($sql[ $i ]);
+			if ( ! $result)
+			{
+				if ( ! preg_match("/Duplicate column name/i", mysql_error()) )
+				{
+					log_error('Query #'. $i .': '. mysql_error(), 'DB Updater');
+				}
+			}
+		}
+		unset($sql, $result);
+	}
+	
+	$ajax_state = 'processing';
+	
+	if ($items_processed >= $total_items)
+	{
+		$ajax_state = 'finished';
+	}
+	
+	if ($items_processed < $total_items)
+	{
+		// Create the "History" playlist for each user
+		$sql = "SELECT id 
+				FROM pm_users 
+				ORDER BY id ASC
+				LIMIT $sql_start, $sql_limit";
+
+		if ($result = mysql_query($sql))
+		{
+			while ($row = mysql_fetch_assoc($result))
+			{
+				$list_uniq_id = (function_exists('microtime')) ? md5(microtime() . rand(0,9999)) : md5(time() . rand(0,9999)); 
+				$list_uniq_id = strtoupper(substr($list_uniq_id, 0, 12));
+				
+				$playlist_data = array('visibility' => 0, 
+									   'sorting' => 'date-added-desc',
+									   'title' => '',
+									   'description' => '');
+				
+				if ( ! array_key_exists('visibility', $playlist_data))
+				{
+					$playlist_data['visibility'] = PLAYLIST_PRIVATE;
+				}
+				
+				if ( ! array_key_exists('sorting', $playlist_data))
+				{
+					$playlist_data['sorting'] = 'default';
+				}
+				
+				$sql_playlist = "INSERT INTO pm_playlists 
+									    (list_uniq_id, user_id, type, items_count, date, visibility, sorting, title, description, thumb_source)
+								 VALUES ('". $list_uniq_id ."',
+										". $row['id'] .", 
+										". PLAYLIST_TYPE_HISTORY .",
+										0,
+										'". time()  ."',
+										". $playlist_data['visibility'] .",
+										'". $playlist_data['sorting'] ."',
+										'". secure_sql($playlist_data['title']) ."',
+										'". secure_sql($playlist_data['description']) ."',
+										'')";
+				
+				if ( ! $result_playlist = mysql_query($sql_playlist))
+				{
+					// return false;
+				}
+
+				$items_processed++;
+			}
+		}
+		else
+		{
+			//log_error('MySQL Error: '. mysql_error(), 'DB Updater');
+			//$error_count++;
+			$ajax_state = 'error';
+			$ajax_msg = 'An error occurred while retrieving user data.<br /><strong>MySQL Error</strong>: '. mysql_error();
+		}
+	}
+	
+	switch ($ajax_state)
+	{
+		default:
+		case 'init':
+		case 'processing':
+			
+			$ajax_response = array('state' => $ajax_state,
+								   'start' => $sql_start + $sql_limit,
+								   'progress' => round(($items_processed * 100) / $total_items, 2),
+								   'c' => $items_processed,
+								   'totalitems' => $total_items,
+								   'message' => ''
+								  );
+
+		break;
+		
+		case 'finished':
+		
+			update_config('version', '2.4', true);
+			
+			if ($config['maintenance_mode'] == '1')
+			{
+				update_config('maintenance_mode', 0, true);
+			}
+
+			// Clear SMARTY cache
+			$dir = @opendir($smarty->compile_dir);
+			if ($dir)
+			{
+				while (false !== ($file = readdir($dir)))
+				{
+					if(strlen($file) > 2)
+					{
+						$tmp_parts = explode('.', $file);
+						$ext = array_pop($tmp_parts);
+						$ext = strtolower($ext);
+						if ($ext == 'php' && strpos($file, '%') !== false)
+						{
+							@unlink($smarty->compile_dir .'/'. $file);
+						}
+					}
+				}
+				@closedir($dir);
+			}
+			
+			//	empty cache directory
+			$dir = @opendir($smarty->cache_dir);
+			if ($dir)
+			{
+				while (false !== ($file = readdir($dir)))
+				{
+					if(strlen($file) > 2)
+					{
+						$tmp_parts = explode('.', $file);
+						$ext = array_pop($tmp_parts);
+						$ext = strtolower($ext);
+						if ($ext == 'php' && strpos($file, '%') !== false)
+						{
+							@unlink($smarty->cache_dir .'/'. $file);
+						}
+					}
+				}
+				@closedir($dir);
+			}
+			
+			$ajax_msg = pm_alert_success('Your database has been successfully updated to version 2.4.');
+			$ajax_msg .= pm_alert_warning('<strong>Important:</strong> Delete <code>/'. _ADMIN_FOLDER .'/db_update.php</code> right now. Then, click here to continue to your <a href="index.php">Dashboard</a>.');
+			
+			$ajax_response = array('state' => $ajax_state,
+								   'start' => $total_items,
+								   'limit' => $items_per_file,
+								   'progress' => 100,
+								   'c' => $items_processed,
+								   'totalitems' => $total_items,
+								   'message' => $ajax_msg
+								  );
+		break;
+		
+		case 'error':
+			
+			$ajax_response = array('state' => $ajax_state,
+							 	   'start' => $sql_start,
+								   'limit' => $items_per_file,
+								   'progress' => round(($items_processed * 100) / $total_items, 2),
+								   'c' => $items_processed,
+								   'totalitems' => $total_items,
+								   'message' => pm_alert_error($ajax_msg, false, true)
+								  );
+		break;
+	}
+	
+	echo json_encode($ajax_response);
+	
+	exit();
+}
+// Handle AJAX requests - END
+
+
+$showm = '1';
+$hide_update_notification = 1;
+$load_jquery_ui = 1;
+include('header.php');
+
+$total_users = count_entries('pm_users', '', '');
+$estimated_time = false;
+if ($total_users >= 100)
+{
+	$estimated_time = (int) $total_users * 0.3 / 100;
+}
+
+?>
+
+<script type="text/javascript">
+	
+	function run_update(start, params, html_output_sel)
+	{
+		$('.importLoader').css({'display' : 'inline'})
+		
+		$.ajax({
+			url: '<?php echo _URL ."/". _ADMIN_FOLDER ."/"; ?>db_update.php',
+			data: 'do=update&start='+ start +  
+				  '&progress=' + params.progress +
+				  '&c=' + params.c + 
+				  '&resume=' + params.resume +
+				  '&totalitems='+ params.totalitems,
+			success: function(data){
+						
+						$('.bar').css({'width': data['progress'] + "%"});
+						$('.bar').html(data['progress'] + "%");
+						
+						switch (data['state'])
+						{
+							case 'processing':
+								$("#progressbar").show();
+								//$("#progressbar").progressbar({value: data['progress']});
+								params.progress = data['progress'];
+								params.c = data['c'];
+								params.totalitems = data['totalitems'];
+								params.resume = 0;
+
+								run_update(data['start'], params, html_output_sel);
+								
+							break;
+							
+							case 'finished':
+							case 'error':
+								if (data['state'] == 'finished') {
+									$("#progressbar").hide();
+									$('#ajax-response').html(data['message']);
+									$('#more_v_details').hide();
+									$('#update-btn').hide();
+								} else {
+									//$( "#progressbar" ).progressbar({value: data['progress'] });
+									$('#ajax-response').html(data['message']);
+									$('#update-btn').attr('disabled', false);
+								}
+								
+								$('.importLoader').hide();
+							break;
+						}
+					},
+			dataType: 'json'
+		});
+	}
+
+	$(document).ready(function(){
+		$('#update-btn').click(function(){
+			var params = new Array();
+			
+			$(this).attr('disabled', true);
+			
+			params['progress'] = 0;
+			params['c'] = 0;
+			params['totalitems'] = '<?php echo $total_users; ?>';
+			
+			<?php if ($resume_update) : ?>
+			params['resume'] = 1;
+			$('#progressbar').addClass('active');
+			<?php else : ?>
+			params['resume'] = 0;
+			<?php endif; ?>
+			
+			run_update(0, params, '#ajax-response');
+			return false;
+		});
+	});
+</script>
+
+<div id="adminPrimary">
+	<div class="content">
+		 <h2>Update from version 2.3.1 to 2.4</h2>
+		 <div class="row-fluid">
+			<form name="update-database" method="POST" action="db_update.php">
+				<div class="well">
+					<p>
+						<?php if ($resume_update) : ?>
+							Press the 'Resume' button below to continue updating to version 2.4.
+						<?php else : ?>
+							Press the 'Update' button below if you're ready to update to version 2.4.
+						<?php endif; ?>
+						<br />
+						<?php if ($estimated_time !== false) : ?>
+						Estimated time to complete: <strong><?php echo time_since(time() - $estimated_time, true); ?></strong>.
+						<?php else : ?>
+						This process should take only a few minutes to complete.
+						<?php endif; ?>
+						
+					</p>
+	            </div>
+				<?php if ($config['version'] != '2.3' && $config['version'] != '2.3.1' && $config['version'] != '2.4' && $_GET['force-update'] != 'yes') : ?>
+
+					<div class="alert alert-warning">
+						Warning! This update works only with version <strong>2.3.x</strong>. This site is currently uses version <strong><?php echo $config['version']; ?></strong>. Log into <a href="http://www.phpsugar.com/customer/" target="_blank">your customer area account</a> to download any required updates.
+					</div>
+
+				<?php elseif ($config['version'] == '2.4' && $_GET['force-update'] != 'yes') : ?>
+				
+					<div class="alert alert-success">
+						Looks like your database is already up to date. There's no need to start this process again. 
+						<br /> 
+						Please delete <code>/<?php echo _ADMIN_FOLDER; ?>/db_update.php</code>.
+					</div>
+				
+				<?php else: ?>
+					
+					<div style="width: 100%; height: 18px;" id="progressbar"  class="progress progress-striped <?php echo ($resume_update) ? '' : 'active';?>">
+						<?php if ($resume_update) : ?>
+						<div class="bar" style="width: <?php echo $progress_made; ?>%;"><?php echo $progress_made; ?>%</div>
+						<?php else : ?>
+						<div class="bar" style="width: 0%;"></div>
+						<?php endif; ?>
+					</div>
+					
+					<div id="ajax-response"></div>
+					
+					<button type="submit" name="Update" value="Update" id="update-btn" class="btn btn-blue"><?php echo ($resume_update) ? 'Resume' : 'Update'; ?></button> <em class="importLoader"><small>Please wait...</small></em>
+				
+				<?php endif;?>
+			</form>
+		 </div><!-- .row-fluid -->
+    </div><!-- .content -->
+</div><!-- .primary -->
+<?php
+include('footer.php');

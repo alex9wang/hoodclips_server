@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+      xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+
+<url>
+  <loc>http://hoodclips.net/</loc>
+  <changefreq>monthly</changefreq>
+</url>
+<url>
+  <loc>http://hoodclips.net/submit_video.php</loc>
+  <changefreq>monthly</changefreq>
+</url>
+<url>
+  <loc>http://hoodclips.net/contact_us.php</loc>
+  <changefreq>monthly</changefreq>
+</url>
+<url>
+  <loc>http://hoodclips.net/page.php?name=privacy-policy</loc>
+  <changefreq>monthly</changefreq>
+</url>
+<url>
+  <loc>http://hoodclips.net/page.php?name=terms</loc>
+  <changefreq>monthly</changefreq>
+</url>
+<url>
+  <loc>http://hoodclips.net/page.php?name=dmca</loc>
+  <changefreq>monthly</changefreq>
+</url>
+
+<url>
+  <loc>http://hoodclips.net/index.php</loc>
+  <changefreq>monthly</changefreq>
+</url>
+</urlset>
